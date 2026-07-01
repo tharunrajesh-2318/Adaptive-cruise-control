@@ -1,0 +1,161 @@
+`timescale 1ns / 1ps
+
+module axi_master(
+
+    input           ACLK,
+    input           ARESETN,
+    input           start,
+
+    output reg [31:0] AWADDR,
+    output reg [7:0]  AWLEN,
+    output reg [2:0]  AWSIZE,
+    output reg [1:0]  AWBURST,
+    output reg        AWVALID,
+    input             AWREADY,
+
+    output reg [31:0] WDATA,
+    output reg [3:0]  WSTRB,
+    output reg        WLAST,
+    output reg        WVALID,
+    input             WREADY,
+
+    input      [1:0]  BRESP,
+    input             BVALID,
+    output reg        BREADY,
+
+    output reg [31:0] ARADDR,
+    output reg [7:0]  ARLEN,
+    output reg [2:0]  ARSIZE,
+    output reg [1:0]  ARBURST,
+    output reg        ARVALID,
+    input             ARREADY,
+
+    input      [31:0] RDATA,
+    input      [1:0]  RRESP,
+    input             RLAST,
+    input             RVALID,
+    output reg        RREADY
+
+);
+
+parameter IDLE  = 3'd0;
+parameter WRITE = 3'd1;
+parameter WRESP = 3'd2;
+parameter READ  = 3'd3;
+parameter RDATA_STATE = 3'd4;
+parameter DONE  = 3'd5;
+
+reg [2:0] state;
+
+always @(posedge ACLK or negedge ARESETN)
+begin
+
+    if(!ARESETN)
+    begin
+
+        state <= IDLE;
+
+        AWADDR <= 32'h00001000;
+        AWLEN <= 0;
+        AWSIZE <= 3'b010;
+        AWBURST <= 2'b01;
+        AWVALID <= 0;
+
+        WDATA <= 32'hA5A5A5A5;
+        WSTRB <= 4'b1111;
+        WLAST <= 1;
+        WVALID <= 0;
+
+        BREADY <= 0;
+
+        ARADDR <= 32'h00001000;
+        ARLEN <= 0;
+        ARSIZE <= 3'b010;
+        ARBURST <= 2'b01;
+        ARVALID <= 0;
+
+        RREADY <= 0;
+
+    end
+
+    else
+    begin
+
+        case(state)
+
+        IDLE:
+        begin
+            if(start)
+            begin
+                AWVALID <= 1;
+                WVALID <= 1;
+                state <= WRITE;
+            end
+        end
+
+        WRITE:
+        begin
+
+            if(AWREADY)
+                AWVALID <= 0;
+
+            if(WREADY)
+                WVALID <= 0;
+
+            if(AWREADY && WREADY)
+            begin
+                BREADY <= 1;
+                state <= WRESP;
+            end
+
+        end
+
+        WRESP:
+        begin
+
+            if(BVALID)
+            begin
+                BREADY <= 0;
+                ARVALID <= 1;
+                state <= READ;
+            end
+
+        end
+
+        READ:
+        begin
+
+            if(ARREADY)
+            begin
+                ARVALID <= 0;
+                RREADY <= 1;
+                state <= RDATA_STATE;
+            end
+
+        end
+
+        RDATA_STATE:
+        begin
+
+            if(RVALID)
+            begin
+                RREADY <= 0;
+                state <= DONE;
+            end
+
+        end
+
+        DONE:
+        begin
+        end
+
+        default:
+            state <= IDLE;
+
+        endcase
+
+    end
+
+end
+
+endmodule
