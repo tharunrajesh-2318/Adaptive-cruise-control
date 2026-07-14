@@ -1,0 +1,96 @@
+`timescale 1ns/1ps
+
+module tb_axi4_interconnect;
+
+reg clk;
+reg rst;
+reg start;
+reg rw;
+reg [31:0] addr_in;
+reg [31:0] data_in;
+
+wire [31:0] data_out;
+wire done;
+
+axi4_interconnect_top dut(
+    .clk(clk),
+    .rst(rst),
+    .start(start),
+    .rw(rw),
+    .addr_in(addr_in),
+    .data_in(data_in),
+    .data_out(data_out),
+    .done(done)
+);
+
+always #5 clk = ~clk;
+
+initial
+begin
+    clk = 0;
+    rst = 1;
+    start = 0;
+    rw = 0;
+    addr_in = 32'd0;
+    data_in = 32'd0;
+
+    #20;
+    rst = 0;
+
+    #10;
+    start = 1;
+    rw = 1;
+ addr_in = 32'h00000008;
+    data_in = 32'h12345678;
+
+    #10;
+    start = 0;
+
+    wait(done);
+
+    #20;
+
+    start = 1;
+    rw = 0;
+    addr_in = 32'h00000008;
+
+    #10;
+    start = 0;
+
+    wait(done);
+
+    #20;
+    $display("FIFO Read Data = %h", data_out);
+
+    #20;
+
+    start = 1;
+    rw = 1;
+    addr_in = 32'h10000010;
+ data_in = 32'hA5A5F0F0;
+
+    #10;
+    start = 0;
+
+    wait(done);
+
+    #20;
+
+    start = 1;
+    rw = 0;
+    addr_in = 32'h10000010;
+
+    #10;
+    start = 0;
+
+    wait(done);
+
+    #20;
+    $display("Cache Read Data = %h", data_out);
+
+    #50;
+
+    $finish;
+end
+
+endmodule
