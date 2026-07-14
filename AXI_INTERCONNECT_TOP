@@ -1,0 +1,83 @@
+module axi4_interconnect_top(
+    input clk,
+    input rst,
+    input start,
+    input rw,
+    input [31:0] addr_in,
+    input [31:0] data_in,
+    output [31:0] data_out,
+    output done
+);
+
+wire [31:0] master_addr;
+wire [31:0] master_wdata;
+wire [31:0] master_rdata;
+
+wire write_en;
+wire read_en;
+
+wire sel_fifo;
+wire sel_cache;
+
+wire [31:0] fifo_data;
+wire [31:0] cache_data;
+
+wire fifo_full;
+wire fifo_empty;
+
+wire cache_hit;
+
+wire ready;
+
+assign ready = 1'b1;
+
+axi_master master(
+    .clk(clk),
+    .rst(rst),
+    .start(start),
+    .rw(rw),
+    .addr_in(addr_in),
+    .data_in(data_in),
+    .rdata(master_rdata),
+    .ready(ready),
+.addr(master_addr),
+    .wdata(master_wdata),
+    .write_en(write_en),
+    .read_en(read_en),
+    .data_out(data_out),
+    .done(done)
+);
+
+address_decoder decoder(
+    .address(master_addr),
+    .sel_fifo(sel_fifo),
+    .sel_cache(sel_cache)
+);
+
+fifo fifo_inst(
+    .clk(clk),
+    .rst(rst),
+    .wr_en(write_en && sel_fifo),
+    .rd_en(read_en && sel_fifo),
+    .data_in(master_wdata),
+    .data_out(fifo_data),
+    .full(fifo_full),
+    .empty(fifo_empty)
+);
+
+cache_memory_controller cache_inst(
+    .clk(clk),
+    .rst(rst),
+    .address(master_addr),
+    .write_en(write_en && sel_cache),
+    .read_en(read_en && sel_cache),
+    .write_data(master_wdata),
+    .read_data(cache_data),
+    .hit(cache_hit)
+);
+
+assign master_rdata = sel_fifo ? fifo_data :
+                      sel_cache ? cache_data :
+                      32'd0;
+
+endmodule
